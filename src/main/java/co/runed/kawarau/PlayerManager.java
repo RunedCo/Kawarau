@@ -111,7 +111,7 @@ public class PlayerManager implements Listener
                 RedisManager.getInstance().publish(RedisChannels.REQUEST_PLAYER_DATA_RESPONSE, response);
                 break;
             }
-            case RedisChannels.UPDATE_SERVER:
+            case RedisChannels.UPDATE_PLAYER_DATA:
             {
                 UpdatePlayerDataPayload payload = Payload.fromJson(event.getMessage(), UpdatePlayerDataPayload.class);
 
