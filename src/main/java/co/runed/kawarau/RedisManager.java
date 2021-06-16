@@ -1,17 +1,17 @@
 package co.runed.kawarau;
 
+import co.runed.bolster.common.redis.RedisChannels;
+import co.runed.bolster.common.redis.payload.Payload;
 import co.runed.kawarau.events.RedisMessageEvent;
-import co.runed.redismessaging.RedisChannels;
-import co.runed.redismessaging.payload.Payload;
 import net.md_5.bungee.api.plugin.Plugin;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
 
 public class RedisManager extends JedisPubSub
 {
-    Plugin plugin;
-    Jedis subRedis;
-    Jedis pubRedis;
+    private final Plugin plugin;
+    private final Jedis subRedis;
+    private final Jedis pubRedis;
 
     private static RedisManager _instance;
 

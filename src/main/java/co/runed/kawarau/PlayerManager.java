@@ -1,11 +1,11 @@
 package co.runed.kawarau;
 
+import co.runed.bolster.common.redis.RedisChannels;
+import co.runed.bolster.common.redis.payload.Payload;
+import co.runed.bolster.common.redis.request.RequestPlayerDataPayload;
+import co.runed.bolster.common.redis.request.UpdatePlayerDataPayload;
+import co.runed.bolster.common.redis.response.RequestPlayerDataResponsePayload;
 import co.runed.kawarau.events.RedisMessageEvent;
-import co.runed.redismessaging.RedisChannels;
-import co.runed.redismessaging.payload.Payload;
-import co.runed.redismessaging.request.RequestPlayerDataPayload;
-import co.runed.redismessaging.request.UpdatePlayerDataPayload;
-import co.runed.redismessaging.response.RequestPlayerDataResponsePayload;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;

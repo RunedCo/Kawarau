@@ -1,10 +1,13 @@
 package co.runed.kawarau;
 
+import co.runed.bolster.common.redis.RedisChannels;
+import co.runed.bolster.common.redis.payload.Payload;
+import co.runed.bolster.common.redis.request.RegisterServerPayload;
+import co.runed.bolster.common.redis.request.UnregisterServerPayload;
+import co.runed.bolster.common.redis.response.RegisterServerResponsePayload;
 import co.runed.kawarau.events.RedisMessageEvent;
-import co.runed.redismessaging.RedisChannels;
-import co.runed.redismessaging.payload.Payload;
-import co.runed.redismessaging.request.RegisterServerPayload;
-import co.runed.redismessaging.request.UnregisterServerPayload;
+import co.runed.kawarau.util.GsonUtil;
+import com.google.gson.reflect.TypeToken;
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoCredential;
@@ -21,9 +24,8 @@ import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPubSub;
 
-import java.net.InetSocketAddress;
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -74,6 +76,8 @@ public class Kawarau extends Plugin implements Listener
 
         this.playerManager = new PlayerManager();
 
+        this.loadServers();
+
         getProxy().getPluginManager().registerListener(this, this);
         getProxy().getPluginManager().registerListener(this, this.playerManager);
     }
@@ -96,9 +100,8 @@ public class Kawarau extends Plugin implements Listener
             pubRedis = this.jedisPool.getResource();
 
             /* Creating JedisPubSub object for subscribing with channels */
-            JedisPubSub redisListener = new RedisManager(this, subRedis, pubRedis);
+            RedisManager redisManager = new RedisManager(this, subRedis, pubRedis);
         }
-
         catch (Exception ex)
         {
             System.out.println("Exception : " + ex.getMessage());
@@ -117,17 +120,27 @@ public class Kawarau extends Plugin implements Listener
         }
     }
 
-    public void addServer(String id, String gameMode, String name, String ipAddress, int port, String motd, boolean restricted)
+    public String getNextServerId(String gameMode)
     {
-        ServerInfo info = this.getProxy().constructServerInfo(name, InetSocketAddress.createUnresolved(ipAddress, port), motd, restricted);
+        return gameMode + "-1";
+    }
 
-        ServerData serverData = new ServerData(id, gameMode, info);
+    public ServerData addServer(String id, String gameMode, String name, String ipAddress, int port, String motd, boolean restricted)
+    {
+        if (id == null) id = this.getNextServerId(gameMode);
+
+        ServerData serverData = new ServerData(id, gameMode, name, ipAddress, port, motd, restricted);
+        ServerInfo info = serverData.getServerInfo();
 
         this.getProxy().getServers().put(id, info);
 
         this.serverData.put(id, serverData);
 
         getLogger().info("Added server '" + id + "' (" + ipAddress + ":" + port + ")");
+
+        this.saveServers();
+
+        return serverData;
     }
 
     public void removeServer(String id)
@@ -143,11 +156,41 @@ public class Kawarau extends Plugin implements Listener
         this.serverData.remove(id);
 
         getLogger().info("Removed server '" + id + "'");
+
+        this.saveServers();
     }
 
     public ServerData getServerData(String id)
     {
         return this.serverData.get(id);
+    }
+
+    private void saveServers()
+    {
+        Jedis jedis = this.jedisPool.getResource();
+        String serverJson = GsonUtil.create().toJson(this.serverData);
+
+        jedis.set("ServerData", serverJson);
+    }
+
+    private void loadServers()
+    {
+        Jedis jedis = this.jedisPool.getResource();
+        String serverJson = jedis.get("ServerData");
+        Type typeToken = new TypeToken<Map<String, ServerData>>()
+        {
+        }.getType();
+
+        Map<String, ServerData> serverMap = GsonUtil.create().fromJson(serverJson, typeToken);
+
+        if (serverMap == null) return;
+
+        for (Map.Entry<String, ServerData> entry : serverMap.entrySet())
+        {
+            this.getProxy().getServers().put(entry.getKey(), entry.getValue().getServerInfo());
+        }
+
+        this.serverData = serverMap;
     }
 
     @EventHandler
@@ -159,7 +202,13 @@ public class Kawarau extends Plugin implements Listener
             {
                 RegisterServerPayload payload = Payload.fromJson(event.getMessage(), RegisterServerPayload.class);
 
-                addServer(payload.serverId, payload.gameMode, payload.name, payload.ipAddress, payload.port, payload.status, false);
+                ServerData serverData = addServer(payload.serverId, payload.gameMode, payload.name, payload.ipAddress, payload.port, payload.status, false);
+
+                RegisterServerResponsePayload response = new RegisterServerResponsePayload();
+                response.target = payload.sender;
+                response.serverId = serverData.id;
+
+                RedisManager.getInstance().publish(RedisChannels.REGISTER_SERVER_RESPONSE, response);
 
                 break;
             }
@@ -174,20 +223,6 @@ public class Kawarau extends Plugin implements Listener
         }
     }
 
-
-    public static class ServerData
-    {
-        public String id;
-        public String gameMode;
-        public ServerInfo info;
-
-        private ServerData(String id, String gameMode, ServerInfo info)
-        {
-            this.id = id;
-            this.gameMode = gameMode;
-            this.info = info;
-        }
-    }
 
     public static MongoClient getMongoClient()
     {
