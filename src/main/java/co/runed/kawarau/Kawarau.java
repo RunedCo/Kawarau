@@ -28,6 +28,7 @@ import redis.clients.jedis.JedisPool;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class Kawarau extends Plugin implements Listener
 {
@@ -36,7 +37,7 @@ public class Kawarau extends Plugin implements Listener
     private JedisPool jedisPool;
     private PlayerManager playerManager;
 
-    private Map<String, ServerData> serverData = new HashMap<>();
+    private Map<String, BungeeServerData> serverData = new HashMap<>();
 
     private static Kawarau _instance;
 
@@ -76,7 +77,7 @@ public class Kawarau extends Plugin implements Listener
 
         this.playerManager = new PlayerManager();
 
-        this.loadServers();
+        getProxy().getScheduler().schedule(this, this::loadServers, 2L, TimeUnit.SECONDS);
 
         getProxy().getPluginManager().registerListener(this, this);
         getProxy().getPluginManager().registerListener(this, this.playerManager);
@@ -125,11 +126,11 @@ public class Kawarau extends Plugin implements Listener
         return gameMode + "-1";
     }
 
-    public ServerData addServer(String id, String gameMode, String name, String ipAddress, int port, String motd, boolean restricted)
+    public BungeeServerData addServer(String id, String gameMode, String name, String ipAddress, int port, String motd, boolean restricted)
     {
         if (id == null) id = this.getNextServerId(gameMode);
 
-        ServerData serverData = new ServerData(id, gameMode, name, ipAddress, port, motd, restricted);
+        BungeeServerData serverData = new BungeeServerData(id, gameMode, name, ipAddress, port, motd, restricted);
         ServerInfo info = serverData.getServerInfo();
 
         this.getProxy().getServers().put(id, info);
@@ -160,34 +161,33 @@ public class Kawarau extends Plugin implements Listener
         this.saveServers();
     }
 
-    public ServerData getServerData(String id)
+    public BungeeServerData getServerData(String id)
     {
         return this.serverData.get(id);
     }
 
     private void saveServers()
     {
-        Jedis jedis = this.jedisPool.getResource();
         String serverJson = GsonUtil.create().toJson(this.serverData);
 
-        jedis.set("ServerData", serverJson);
+        RedisManager.getInstance().set("ServerData", serverJson);
     }
 
     private void loadServers()
     {
-        Jedis jedis = this.jedisPool.getResource();
-        String serverJson = jedis.get("ServerData");
-        Type typeToken = new TypeToken<Map<String, ServerData>>()
+        String serverJson = RedisManager.getInstance().get("ServerData");
+        Type typeToken = new TypeToken<Map<String, BungeeServerData>>()
         {
         }.getType();
 
-        Map<String, ServerData> serverMap = GsonUtil.create().fromJson(serverJson, typeToken);
+        Map<String, BungeeServerData> serverMap = GsonUtil.create().fromJson(serverJson, typeToken);
 
         if (serverMap == null) return;
 
-        for (Map.Entry<String, ServerData> entry : serverMap.entrySet())
+        for (Map.Entry<String, BungeeServerData> entry : serverMap.entrySet())
         {
-            this.getProxy().getServers().put(entry.getKey(), entry.getValue().getServerInfo());
+            ServerInfo info = entry.getValue().getServerInfo();
+            this.getProxy().getServers().put(entry.getKey(), info);
         }
 
         this.serverData = serverMap;
@@ -202,7 +202,7 @@ public class Kawarau extends Plugin implements Listener
             {
                 RegisterServerPayload payload = Payload.fromJson(event.getMessage(), RegisterServerPayload.class);
 
-                ServerData serverData = addServer(payload.serverId, payload.gameMode, payload.name, payload.ipAddress, payload.port, payload.status, false);
+                BungeeServerData serverData = addServer(payload.serverId, payload.gameMode, payload.name, payload.ipAddress, payload.port, payload.status, false);
 
                 RegisterServerResponsePayload response = new RegisterServerResponsePayload();
                 response.target = payload.sender;

@@ -63,6 +63,16 @@ public class RedisManager extends JedisPubSub
         pubRedis.publish(channel, payload.toJson());
     }
 
+    public String get(String key)
+    {
+        return pubRedis.get(key);
+    }
+
+    public void set(String key, String value)
+    {
+        pubRedis.set(key, value);
+    }
+
     public static RedisManager getInstance()
     {
         return _instance;
