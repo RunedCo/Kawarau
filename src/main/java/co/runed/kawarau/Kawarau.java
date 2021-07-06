@@ -1,8 +1,10 @@
 package co.runed.kawarau;
 
+import co.runed.bolster.common.ServerData;
 import co.runed.bolster.common.redis.RedisChannels;
+import co.runed.bolster.common.redis.RedisManager;
 import co.runed.bolster.common.redis.payload.Payload;
-import co.runed.bolster.common.redis.request.RegisterServerPayload;
+import co.runed.bolster.common.redis.request.ServerDataPayload;
 import co.runed.bolster.common.redis.request.UnregisterServerPayload;
 import co.runed.bolster.common.redis.response.RegisterServerResponsePayload;
 import co.runed.kawarau.events.RedisMessageEvent;
@@ -22,10 +24,9 @@ import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
 
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -34,8 +35,8 @@ public class Kawarau extends Plugin implements Listener
 {
     public Config config;
     private MongoClient mongoClient;
-    private JedisPool jedisPool;
     private PlayerManager playerManager;
+    private RedisManager redisManager;
 
     private Map<String, BungeeServerData> serverData = new HashMap<>();
 
@@ -71,77 +72,76 @@ public class Kawarau extends Plugin implements Listener
         this.mongoClient = MongoClients.create(clientSettings);
 
         /* Connect to Redis */
-        this.jedisPool = new JedisPool(config.redisHost, config.redisPort);
+        var redisChannels = Arrays.asList(RedisChannels.REGISTER_SERVER, RedisChannels.UNREGISTER_SERVER,
+                RedisChannels.UPDATE_SERVER, RedisChannels.REQUEST_SERVERS, RedisChannels.REQUEST_PLAYER_DATA,
+                RedisChannels.UPDATE_PLAYER_DATA);
 
-        getProxy().getScheduler().runAsync(this, this::setupRedisListener);
+        this.redisManager = new RedisManager(config.redisHost, config.redisPort, null, null, redisChannels);
+        this.redisManager.setSenderId("proxy");
+        this.redisManager.setMessageHandler((channel, message) -> getProxy().getPluginManager().callEvent(new RedisMessageEvent(channel, message)));
+
+        getProxy().getScheduler().runAsync(this, redisManager::setup);
 
         this.playerManager = new PlayerManager();
 
         getProxy().getScheduler().schedule(this, this::loadServers, 2L, TimeUnit.SECONDS);
 
+//        getProxy().getScheduler().schedule(this, this::heartbeat, 0L, 1, TimeUnit.MINUTES);
+
         getProxy().getPluginManager().registerListener(this, this);
         getProxy().getPluginManager().registerListener(this, this.playerManager);
     }
 
-    @Override
-    public void onDisable()
+    private void heartbeat()
     {
-        this.jedisPool.close();
-    }
+        Map<String, BungeeServerData> servers = new HashMap<>(this.serverData);
 
-    private void setupRedisListener()
-    {
-        Jedis subRedis = null;
-        Jedis pubRedis = null;
-
-        try
+        for (Map.Entry<String, BungeeServerData> entry : servers.entrySet())
         {
-            /* Creating Jedis object for connecting with redis server */
-            subRedis = this.jedisPool.getResource();
-            pubRedis = this.jedisPool.getResource();
-
-            /* Creating JedisPubSub object for subscribing with channels */
-            RedisManager redisManager = new RedisManager(this, subRedis, pubRedis);
-        }
-        catch (Exception ex)
-        {
-            System.out.println("Exception : " + ex.getMessage());
-        }
-        finally
-        {
-            if (subRedis != null)
-            {
-                subRedis.close();
-            }
-
-            if (pubRedis != null)
-            {
-                pubRedis.close();
-            }
+            entry.getValue().info.ping((serverPing, error) -> {
+                if (error != null)
+                {
+                    removeServer(entry.getKey());
+                }
+            });
         }
     }
 
     public String getNextServerId(String gameMode)
     {
-        return gameMode + "-1";
+        int serverNumber = 1;
+        String id = null;
+
+        while (id == null || serverData.containsKey(id))
+        {
+            id = gameMode + "-" + serverNumber;
+
+            serverNumber++;
+        }
+
+        return id;
     }
 
-    public BungeeServerData addServer(String id, String gameMode, String name, String ipAddress, int port, String motd, boolean restricted)
+    public BungeeServerData addServer(ServerData serverData)
     {
-        if (id == null) id = this.getNextServerId(gameMode);
+        if (serverData.id == null) serverData.id = this.getNextServerId(serverData.gameMode);
 
-        BungeeServerData serverData = new BungeeServerData(id, gameMode, name, ipAddress, port, motd, restricted);
-        ServerInfo info = serverData.getServerInfo();
+        if (serverData.ipAddress == null || serverData.port <= 0)
+        {
+            getLogger().severe("Error adding server '" + serverData.id + "'");
+            return null;
+        }
 
-        this.getProxy().getServers().put(id, info);
+        BungeeServerData bungeeServerData = new BungeeServerData(serverData);
+        ServerInfo info = bungeeServerData.getServerInfo();
 
-        this.serverData.put(id, serverData);
+        this.getProxy().getServers().put(serverData.id, info);
 
-        getLogger().info("Added server '" + id + "' (" + ipAddress + ":" + port + ")");
+        this.serverData.put(serverData.id, bungeeServerData);
 
         this.saveServers();
 
-        return serverData;
+        return bungeeServerData;
     }
 
     public void removeServer(String id)
@@ -198,17 +198,24 @@ public class Kawarau extends Plugin implements Listener
     {
         switch (event.getChannel())
         {
+            case RedisChannels.UPDATE_SERVER:
             case RedisChannels.REGISTER_SERVER:
             {
-                RegisterServerPayload payload = Payload.fromJson(event.getMessage(), RegisterServerPayload.class);
+                ServerDataPayload payload = Payload.fromJson(event.getMessage(), ServerDataPayload.class);
 
-                BungeeServerData serverData = addServer(payload.serverId, payload.gameMode, payload.name, payload.ipAddress, payload.port, payload.status, false);
+                BungeeServerData serverData = addServer(payload.serverData);
 
-                RegisterServerResponsePayload response = new RegisterServerResponsePayload();
-                response.target = payload.sender;
-                response.serverId = serverData.id;
+                if (event.getChannel().equals(RedisChannels.REGISTER_SERVER) && serverData != null)
+                {
+                    RegisterServerResponsePayload response = new RegisterServerResponsePayload();
+                    response.target = payload.sender;
+                    response.serverId = serverData.id;
 
-                RedisManager.getInstance().publish(RedisChannels.REGISTER_SERVER_RESPONSE, response);
+                    RedisManager.getInstance().publish(RedisChannels.REGISTER_SERVER_RESPONSE, response);
+                }
+
+                getLogger().info((event.getChannel().equals(RedisChannels.REGISTER_SERVER) ? "Added" : "Updated")
+                        + " server '" + serverData.id + "' (" + serverData.ipAddress + ":" + serverData.port + ")");
 
                 break;
             }
@@ -222,7 +229,6 @@ public class Kawarau extends Plugin implements Listener
             }
         }
     }
-
 
     public static MongoClient getMongoClient()
     {

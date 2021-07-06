@@ -1,6 +1,7 @@
 package co.runed.kawarau;
 
 import co.runed.bolster.common.redis.RedisChannels;
+import co.runed.bolster.common.redis.RedisManager;
 import co.runed.bolster.common.redis.payload.Payload;
 import co.runed.bolster.common.redis.request.RequestPlayerDataPayload;
 import co.runed.bolster.common.redis.request.UpdatePlayerDataPayload;
