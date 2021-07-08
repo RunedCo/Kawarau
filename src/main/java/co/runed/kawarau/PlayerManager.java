@@ -116,7 +116,11 @@ public class PlayerManager implements Listener
             {
                 UpdatePlayerDataPayload payload = Payload.fromJson(event.getMessage(), UpdatePlayerDataPayload.class);
 
-                setPlayerData(payload.uuid, payload.playerData);
+                for (var entry : payload.playerData.entrySet())
+                {
+                    setPlayerData(entry.getKey(), entry.getValue());
+                }
+
                 break;
             }
         }
