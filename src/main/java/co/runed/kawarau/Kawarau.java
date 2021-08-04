@@ -1,14 +1,16 @@
 package co.runed.kawarau;
 
 import co.runed.bolster.common.ServerData;
+import co.runed.bolster.common.gson.GsonUtil;
 import co.runed.bolster.common.redis.RedisChannels;
 import co.runed.bolster.common.redis.RedisManager;
 import co.runed.bolster.common.redis.payload.Payload;
+import co.runed.bolster.common.redis.request.ListServersPayload;
 import co.runed.bolster.common.redis.request.ServerDataPayload;
 import co.runed.bolster.common.redis.request.UnregisterServerPayload;
+import co.runed.bolster.common.redis.response.ListServersResponsePayload;
 import co.runed.bolster.common.redis.response.RegisterServerResponsePayload;
 import co.runed.kawarau.events.RedisMessageEvent;
-import co.runed.kawarau.util.GsonUtil;
 import com.google.gson.reflect.TypeToken;
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
@@ -73,7 +75,7 @@ public class Kawarau extends Plugin implements Listener
 
         /* Connect to Redis */
         var redisChannels = Arrays.asList(RedisChannels.REGISTER_SERVER, RedisChannels.UNREGISTER_SERVER,
-                RedisChannels.UPDATE_SERVER, RedisChannels.REQUEST_SERVERS, RedisChannels.REQUEST_PLAYER_DATA,
+                RedisChannels.UPDATE_SERVER, RedisChannels.LIST_SERVERS, RedisChannels.REQUEST_PLAYER_DATA,
                 RedisChannels.UPDATE_PLAYER_DATA);
 
         this.redisManager = new RedisManager(config.redisHost, config.redisPort, null, null, redisChannels);
@@ -217,6 +219,16 @@ public class Kawarau extends Plugin implements Listener
                 getLogger().info((event.getChannel().equals(RedisChannels.REGISTER_SERVER) ? "Added" : "Updated")
                         + " server '" + serverData.id + "' (" + serverData.ipAddress + ":" + serverData.port + ")");
 
+                sendServerData("*");
+
+                break;
+            }
+            case RedisChannels.LIST_SERVERS:
+            {
+                ListServersPayload payload = Payload.fromJson(event.getMessage(), ListServersPayload.class);
+
+                sendServerData(payload.sender);
+
                 break;
             }
             case RedisChannels.UNREGISTER_SERVER:
@@ -228,6 +240,18 @@ public class Kawarau extends Plugin implements Listener
                 break;
             }
         }
+    }
+
+    private void sendServerData(String target)
+    {
+        ListServersResponsePayload payload = new ListServersResponsePayload();
+
+        for (var entry : this.serverData.entrySet())
+        {
+            payload.servers.put(entry.getKey(), entry.getValue());
+        }
+
+        RedisManager.getInstance().publish(target, RedisChannels.LIST_SERVERS_RESPONSE, payload);
     }
 
     public static MongoClient getMongoClient()

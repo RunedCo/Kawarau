@@ -1,7 +1,7 @@
 package co.runed.kawarau;
 
 import co.runed.bolster.common.ServerData;
-import co.runed.kawarau.util.JsonExclude;
+import co.runed.bolster.common.gson.JsonExclude;
 import net.md_5.bungee.api.config.ServerInfo;
 
 import java.net.InetSocketAddress;
@@ -16,7 +16,7 @@ public class BungeeServerData extends ServerData
         super(data.id, data.gameMode, data.name, data.iconMaterial, data.status, data.ipAddress, data.port, data.restricted);
 
         this.maxPlayers = data.maxPlayers;
-        this.currentPlayers = data.currentPlayers;
+        this.onlinePlayers = data.onlinePlayers;
         this.maxPremiumPlayers = data.maxPremiumPlayers;
     }
 
