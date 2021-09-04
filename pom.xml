@@ -46,7 +46,7 @@
                                     <include>org.mongodb:mongodb-driver-sync</include>
                                     <include>org.mongodb:mongodb-driver-core</include>
                                     <include>org.mongodb:bson</include>
-                                    <include>co.runed:bolstercommon</include>
+                                    <include>co.runed:dayroom</include>
                                 </includes>
                             </artifactSet>
                             <filters>
@@ -83,7 +83,7 @@
     <dependencies>
         <dependency>
             <groupId>co.runed</groupId>
-            <artifactId>bolstercommon</artifactId>
+            <artifactId>dayroom</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
