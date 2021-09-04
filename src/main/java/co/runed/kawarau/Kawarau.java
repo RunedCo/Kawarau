@@ -17,24 +17,19 @@ import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoCredential;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
-import net.md_5.bungee.api.config.ServerInfo;
-import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.event.EventHandler;
 import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistries;
-import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 
-import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class Kawarau extends Plugin implements Listener
-{
+public class Kawarau extends Plugin implements Listener {
     public Config config;
     private MongoClient mongoClient;
     private PlayerManager playerManager;
@@ -45,26 +40,24 @@ public class Kawarau extends Plugin implements Listener
     private static Kawarau _instance;
 
     @Override
-    public void onLoad()
-    {
+    public void onLoad() {
         this.config = new Config(this);
 
         _instance = this;
     }
 
     @Override
-    public void onEnable()
-    {
+    public void onEnable() {
         getLogger().info("Loading Kawarau...");
 
         /* Connect to MongoDB */
-        MongoCredential credential = MongoCredential.createCredential(this.config.databaseUsername, "admin", this.config.databasePassword.toCharArray());
-        ConnectionString connectionString = new ConnectionString("mongodb://" + this.config.databaseUrl + ":" + this.config.databasePort);
-        CodecRegistry pojoCodecRegistry = CodecRegistries.fromProviders(PojoCodecProvider.builder().automatic(true).build());
-        CodecRegistry codecRegistry = CodecRegistries.fromRegistries(MongoClientSettings.getDefaultCodecRegistry(),
+        var credential = MongoCredential.createCredential(this.config.databaseUsername, "admin", this.config.databasePassword.toCharArray());
+        var connectionString = new ConnectionString("mongodb://" + this.config.databaseUrl + ":" + this.config.databasePort);
+        var pojoCodecRegistry = CodecRegistries.fromProviders(PojoCodecProvider.builder().automatic(true).build());
+        var codecRegistry = CodecRegistries.fromRegistries(MongoClientSettings.getDefaultCodecRegistry(),
                 pojoCodecRegistry);
 
-        MongoClientSettings clientSettings = MongoClientSettings.builder()
+        var clientSettings = MongoClientSettings.builder()
                 .applyConnectionString(connectionString)
                 .credential(credential)
                 .codecRegistry(codecRegistry)
@@ -94,28 +87,23 @@ public class Kawarau extends Plugin implements Listener
         getProxy().getPluginManager().registerListener(this, this.playerManager);
     }
 
-    private void heartbeat()
-    {
+    private void heartbeat() {
         Map<String, BungeeServerData> servers = new HashMap<>(this.serverData);
 
-        for (Map.Entry<String, BungeeServerData> entry : servers.entrySet())
-        {
+        for (var entry : servers.entrySet()) {
             entry.getValue().info.ping((serverPing, error) -> {
-                if (error != null)
-                {
+                if (error != null) {
                     removeServer(entry.getKey());
                 }
             });
         }
     }
 
-    public String getNextServerId(String gameMode)
-    {
-        int serverNumber = 1;
+    public String getNextServerId(String gameMode) {
+        var serverNumber = 1;
         String id = null;
 
-        while (id == null || serverData.containsKey(id))
-        {
+        while (id == null || serverData.containsKey(id)) {
             id = gameMode + "-" + serverNumber;
 
             serverNumber++;
@@ -124,18 +112,16 @@ public class Kawarau extends Plugin implements Listener
         return id;
     }
 
-    public BungeeServerData addServer(ServerData serverData)
-    {
+    public BungeeServerData addServer(ServerData serverData) {
         if (serverData.id == null) serverData.id = this.getNextServerId(serverData.gameMode);
 
-        if (serverData.ipAddress == null || serverData.port <= 0)
-        {
+        if (serverData.ipAddress == null || serverData.port <= 0) {
             getLogger().severe("Error adding server '" + serverData.id + "'");
             return null;
         }
 
-        BungeeServerData bungeeServerData = new BungeeServerData(serverData);
-        ServerInfo info = bungeeServerData.getServerInfo();
+        var bungeeServerData = new BungeeServerData(serverData);
+        var info = bungeeServerData.getServerInfo();
 
         this.getProxy().getServers().put(serverData.id, info);
 
@@ -146,12 +132,10 @@ public class Kawarau extends Plugin implements Listener
         return bungeeServerData;
     }
 
-    public void removeServer(String id)
-    {
-        ServerInfo info = this.getProxy().getServerInfo(id);
+    public void removeServer(String id) {
+        var info = this.getProxy().getServerInfo(id);
 
-        for (ProxiedPlayer player : info.getPlayers())
-        {
+        for (var player : info.getPlayers()) {
 
         }
 
@@ -163,32 +147,27 @@ public class Kawarau extends Plugin implements Listener
         this.saveServers();
     }
 
-    public BungeeServerData getServerData(String id)
-    {
+    public BungeeServerData getServerData(String id) {
         return this.serverData.get(id);
     }
 
-    private void saveServers()
-    {
-        String serverJson = GsonUtil.create().toJson(this.serverData);
+    private void saveServers() {
+        var serverJson = GsonUtil.create().toJson(this.serverData);
 
         RedisManager.getInstance().set("ServerData", serverJson);
     }
 
-    private void loadServers()
-    {
-        String serverJson = RedisManager.getInstance().get("ServerData");
-        Type typeToken = new TypeToken<Map<String, BungeeServerData>>()
-        {
+    private void loadServers() {
+        var serverJson = RedisManager.getInstance().get("ServerData");
+        var typeToken = new TypeToken<Map<String, BungeeServerData>>() {
         }.getType();
 
         Map<String, BungeeServerData> serverMap = GsonUtil.create().fromJson(serverJson, typeToken);
 
         if (serverMap == null) return;
 
-        for (Map.Entry<String, BungeeServerData> entry : serverMap.entrySet())
-        {
-            ServerInfo info = entry.getValue().getServerInfo();
+        for (var entry : serverMap.entrySet()) {
+            var info = entry.getValue().getServerInfo();
             this.getProxy().getServers().put(entry.getKey(), info);
         }
 
@@ -196,20 +175,16 @@ public class Kawarau extends Plugin implements Listener
     }
 
     @EventHandler
-    public void onRedisMessage(RedisMessageEvent event)
-    {
-        switch (event.getChannel())
-        {
+    public void onRedisMessage(RedisMessageEvent event) {
+        switch (event.getChannel()) {
             case RedisChannels.UPDATE_SERVER:
-            case RedisChannels.REGISTER_SERVER:
-            {
-                ServerDataPayload payload = Payload.fromJson(event.getMessage(), ServerDataPayload.class);
+            case RedisChannels.REGISTER_SERVER: {
+                var payload = Payload.fromJson(event.getMessage(), ServerDataPayload.class);
 
-                BungeeServerData serverData = addServer(payload.serverData);
+                var serverData = addServer(payload.serverData);
 
-                if (event.getChannel().equals(RedisChannels.REGISTER_SERVER) && serverData != null)
-                {
-                    RegisterServerResponsePayload response = new RegisterServerResponsePayload();
+                if (event.getChannel().equals(RedisChannels.REGISTER_SERVER) && serverData != null) {
+                    var response = new RegisterServerResponsePayload();
                     response.target = payload.sender;
                     response.serverId = serverData.id;
 
@@ -223,17 +198,15 @@ public class Kawarau extends Plugin implements Listener
 
                 break;
             }
-            case RedisChannels.LIST_SERVERS:
-            {
-                ListServersPayload payload = Payload.fromJson(event.getMessage(), ListServersPayload.class);
+            case RedisChannels.LIST_SERVERS: {
+                var payload = Payload.fromJson(event.getMessage(), ListServersPayload.class);
 
                 sendServerData(payload.sender);
 
                 break;
             }
-            case RedisChannels.UNREGISTER_SERVER:
-            {
-                UnregisterServerPayload payload = Payload.fromJson(event.getMessage(), UnregisterServerPayload.class);
+            case RedisChannels.UNREGISTER_SERVER: {
+                var payload = Payload.fromJson(event.getMessage(), UnregisterServerPayload.class);
 
                 removeServer(payload.serverId);
 
@@ -242,25 +215,21 @@ public class Kawarau extends Plugin implements Listener
         }
     }
 
-    private void sendServerData(String target)
-    {
-        ListServersResponsePayload payload = new ListServersResponsePayload();
+    private void sendServerData(String target) {
+        var payload = new ListServersResponsePayload();
 
-        for (var entry : this.serverData.entrySet())
-        {
+        for (var entry : this.serverData.entrySet()) {
             payload.servers.put(entry.getKey(), entry.getValue());
         }
 
         RedisManager.getInstance().publish(target, RedisChannels.LIST_SERVERS_RESPONSE, payload);
     }
 
-    public static MongoClient getMongoClient()
-    {
+    public static MongoClient getMongoClient() {
         return Kawarau.getInstance().mongoClient;
     }
 
-    public static Kawarau getInstance()
-    {
+    public static Kawarau getInstance() {
         return _instance;
     }
 }

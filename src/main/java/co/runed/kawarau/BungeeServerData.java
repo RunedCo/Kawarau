@@ -6,13 +6,11 @@ import net.md_5.bungee.api.config.ServerInfo;
 
 import java.net.InetSocketAddress;
 
-public class BungeeServerData extends ServerData
-{
+public class BungeeServerData extends ServerData {
     @JsonExclude
     public ServerInfo info = null;
 
-    public BungeeServerData(ServerData data)
-    {
+    public BungeeServerData(ServerData data) {
         super(data.id, data.gameMode, data.name, data.iconMaterial, data.status, data.ipAddress, data.port, data.restricted);
 
         this.maxPlayers = data.maxPlayers;
@@ -20,10 +18,8 @@ public class BungeeServerData extends ServerData
         this.maxPremiumPlayers = data.maxPremiumPlayers;
     }
 
-    public ServerInfo getServerInfo()
-    {
-        if (info == null)
-        {
+    public ServerInfo getServerInfo() {
+        if (info == null) {
             this.info = Kawarau.getInstance().getProxy().constructServerInfo(id, InetSocketAddress.createUnresolved(ipAddress, port), status, restricted);
         }
 
