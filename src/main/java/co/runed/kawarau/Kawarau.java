@@ -1,15 +1,15 @@
 package co.runed.kawarau;
 
-import co.runed.bolster.common.ServerData;
-import co.runed.bolster.common.gson.GsonUtil;
-import co.runed.bolster.common.redis.RedisChannels;
-import co.runed.bolster.common.redis.RedisManager;
-import co.runed.bolster.common.redis.payload.Payload;
-import co.runed.bolster.common.redis.request.ListServersPayload;
-import co.runed.bolster.common.redis.request.ServerDataPayload;
-import co.runed.bolster.common.redis.request.UnregisterServerPayload;
-import co.runed.bolster.common.redis.response.ListServersResponsePayload;
-import co.runed.bolster.common.redis.response.RegisterServerResponsePayload;
+import co.runed.dayroom.ServerData;
+import co.runed.dayroom.gson.GsonUtil;
+import co.runed.dayroom.redis.RedisChannels;
+import co.runed.dayroom.redis.RedisManager;
+import co.runed.dayroom.redis.payload.Payload;
+import co.runed.dayroom.redis.request.ListServersPayload;
+import co.runed.dayroom.redis.request.ServerDataPayload;
+import co.runed.dayroom.redis.request.UnregisterServerPayload;
+import co.runed.dayroom.redis.response.ListServersResponsePayload;
+import co.runed.dayroom.redis.response.RegisterServerResponsePayload;
 import co.runed.kawarau.events.RedisMessageEvent;
 import com.google.gson.reflect.TypeToken;
 import com.mongodb.ConnectionString;

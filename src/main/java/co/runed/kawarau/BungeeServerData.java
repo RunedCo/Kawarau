@@ -1,7 +1,7 @@
 package co.runed.kawarau;
 
-import co.runed.bolster.common.ServerData;
-import co.runed.bolster.common.gson.JsonExclude;
+import co.runed.dayroom.ServerData;
+import co.runed.dayroom.gson.JsonExclude;
 import net.md_5.bungee.api.config.ServerInfo;
 
 import java.net.InetSocketAddress;
