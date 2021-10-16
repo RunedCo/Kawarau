@@ -11,7 +11,7 @@ public class BungeeServerData extends ServerData {
     public ServerInfo info = null;
 
     public BungeeServerData(ServerData data) {
-        super(data.id, data.gameMode, data.name, data.iconMaterial, data.status, data.ipAddress, data.port, data.restricted);
+        super(data.id, data.gameMode, data.name, data.iconMaterial, data.status, data.ipAddress, data.port, data.hidden);
 
         this.maxPlayers = data.maxPlayers;
         this.onlinePlayers = data.onlinePlayers;
@@ -20,7 +20,7 @@ public class BungeeServerData extends ServerData {
 
     public ServerInfo getServerInfo() {
         if (info == null) {
-            this.info = Kawarau.getInstance().getProxy().constructServerInfo(id, InetSocketAddress.createUnresolved(ipAddress, port), status, restricted);
+            this.info = Kawarau.getInstance().getProxy().constructServerInfo(id, InetSocketAddress.createUnresolved(ipAddress, port), status, hidden);
         }
 
         return this.info;
