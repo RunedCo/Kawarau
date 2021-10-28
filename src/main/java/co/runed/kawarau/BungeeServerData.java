@@ -16,6 +16,7 @@ public class BungeeServerData extends ServerData {
         this.maxPlayers = data.maxPlayers;
         this.onlinePlayers = data.onlinePlayers;
         this.maxPremiumPlayers = data.maxPremiumPlayers;
+        this.gameModeName = data.gameModeName;
     }
 
     public ServerInfo getServerInfo() {
