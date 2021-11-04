@@ -10,6 +10,7 @@ import co.runed.dayroom.redis.request.ServerDataPayload;
 import co.runed.dayroom.redis.request.UnregisterServerPayload;
 import co.runed.dayroom.redis.response.ListServersResponsePayload;
 import co.runed.dayroom.redis.response.RegisterServerResponsePayload;
+import co.runed.kawarau.commands.LobbyCommand;
 import co.runed.kawarau.events.RedisMessageEvent;
 import com.google.gson.reflect.TypeToken;
 import com.mongodb.ConnectionString;
@@ -34,6 +35,7 @@ public class Kawarau extends Plugin implements Listener {
     private MongoClient mongoClient;
     private PlayerManager playerManager;
     private RedisManager redisManager;
+    private MatchManager matchManager;
 
     private Map<String, BungeeServerData> serverData = new HashMap<>();
 
@@ -69,7 +71,7 @@ public class Kawarau extends Plugin implements Listener {
         /* Connect to Redis */
         var redisChannels = Arrays.asList(RedisChannels.REGISTER_SERVER, RedisChannels.UNREGISTER_SERVER,
                 RedisChannels.UPDATE_SERVER, RedisChannels.LIST_SERVERS, RedisChannels.REQUEST_PLAYER_DATA,
-                RedisChannels.UPDATE_PLAYER_DATA);
+                RedisChannels.UPDATE_PLAYER_DATA, RedisChannels.REQUEST_MATCH_HISTORY_ID, RedisChannels.UPDATE_MATCH_HISTORY);
 
         this.redisManager = new RedisManager(config.redisHost, config.redisPort, null, null, redisChannels);
         this.redisManager.setSenderId("proxy");
@@ -78,13 +80,18 @@ public class Kawarau extends Plugin implements Listener {
         getProxy().getScheduler().runAsync(this, redisManager::setup);
 
         this.playerManager = new PlayerManager();
+        this.matchManager = new MatchManager();
 
         getProxy().getScheduler().schedule(this, this::loadServers, 2L, TimeUnit.SECONDS);
 
 //        getProxy().getScheduler().schedule(this, this::heartbeat, 0L, 1, TimeUnit.MINUTES);
 
-        getProxy().getPluginManager().registerListener(this, this);
-        getProxy().getPluginManager().registerListener(this, this.playerManager);
+        var pluginManager = getProxy().getPluginManager();
+        pluginManager.registerListener(this, this);
+        pluginManager.registerListener(this, this.playerManager);
+        pluginManager.registerListener(this, this.matchManager);
+
+        pluginManager.registerCommand(this, new LobbyCommand());
     }
 
     private void heartbeat() {
@@ -110,6 +117,26 @@ public class Kawarau extends Plugin implements Listener {
         }
 
         return id;
+    }
+
+    public BungeeServerData getBestServer(String gameMode) {
+        for (var server : serverData.values()) {
+            if (!server.gameMode.equals(gameMode)) continue;
+
+            var serverInfo = server.getServerInfo();
+            var numPlayers = serverInfo.getPlayers().size();
+            var maxPlayers = server.maxPlayers + server.maxPremiumPlayers;
+
+            if (numPlayers >= maxPlayers) continue;
+
+            return server;
+        }
+
+        return null;
+    }
+
+    public Map<String, BungeeServerData> getServers() {
+        return serverData;
     }
 
     public BungeeServerData addServer(ServerData serverData) {
