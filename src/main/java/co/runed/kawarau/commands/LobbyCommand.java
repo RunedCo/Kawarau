@@ -22,9 +22,11 @@ public class LobbyCommand extends Command {
 
             var info = server.getServerInfo();
 
-            if (info.getPlayers().contains(player)) {
-                player.sendMessage(ChatMessageType.CHAT, new ComponentBuilder().append("You are already in the lobby!").color(ChatColor.RED).create());
-                return;
+            for (var p : info.getPlayers()) {
+                if (p.getUniqueId().equals(player.getUniqueId())) {
+                    player.sendMessage(ChatMessageType.CHAT, new ComponentBuilder().append("You are already in the lobby!").color(ChatColor.RED).create());
+                    return;
+                }
             }
 
             player.sendMessage(ChatMessageType.CHAT, new ComponentBuilder().append("Connecting to lobby...").create());
